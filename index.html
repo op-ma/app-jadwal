@@ -322,6 +322,7 @@
       let w = {};
       let hariArr = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'].slice(0, dash.banyakHari);
       let istirahat = dash.jamIstirahat ? dash.jamIstirahat.split(',').map(x => parseInt(x.trim())) : [];
+      let durasiIstirahat = parseInt(dash.durasiIstirahat) || 15;
       
       hariArr.forEach(h => {
         w[h] = [];
@@ -332,7 +333,7 @@
           currentHour = d.getHours(); currentMin = d.getMinutes(); return res;
         };
         for(let i=1; i<=dash.jamMaksimum; i++) {
-          if(istirahat.includes(i)) { w[h].push({ jamKe: i, tipe: 'istirahat', nama: `Istirahat`, mulai: addTime(15).start, selesai: addTime(0).end }); }
+          if(istirahat.includes(i)) { w[h].push({ jamKe: i, tipe: 'istirahat', nama: `Istirahat`, mulai: addTime(durasiIstirahat).start, selesai: addTime(0).end }); }
           else { let t = addTime(dash.durasiJam || 45); w[h].push({ jamKe: i, tipe: 'mapel', nama: `Jam ${i}`, mulai: t.start, selesai: t.end }); }
         }
       });
@@ -344,6 +345,7 @@
       if (data) {
         let parsed = JSON.parse(data);
         if(!parsed.dashboard.durasiJam) parsed.dashboard.durasiJam = 45;
+        if(!parsed.dashboard.durasiIstirahat) parsed.dashboard.durasiIstirahat = 15;
         
         if (parsed.waktuDetail && Array.isArray(parsed.waktuDetail)) {
             let oldWaktu = parsed.waktuDetail;
@@ -361,12 +363,13 @@
               g.penugasan = (kArr.length > 0 && g.mapel) ? [{mapel: g.mapel, kelas: kArr, jamAjar: g.jamAjar||2}] : [];
             }
             if(!g.kode) g.kode = '-';
+            if(!g.jamMengajar) g.jamMengajar = Array.from({length: parsed.dashboard.jamMaksimum}, (_, i) => (i + 1).toString());
             return g;
           });
         }
         return parsed;
       }
-      const defaultDash = { namaSekolah: 'SMA Negeri 1', tahunAkademik: '2025/2026', banyakHari: 6, jamMaksimum: 10, jamIstirahat: "4, 7", durasiJam: 40 };
+      const defaultDash = { namaSekolah: 'SMA Negeri 1', tahunAkademik: '2025/2026', banyakHari: 6, jamMaksimum: 10, jamIstirahat: "4, 7", durasiJam: 40, durasiIstirahat: 15 };
       return { dashboard: defaultDash, waktuDetail: generateDefaultWaktu(defaultDash), mapel: [], kelas: [], guru: [], jadwal: [] };
     }
     
@@ -505,22 +508,25 @@
                 <div class="form-group"><label class="form-label">Total Jam/Hari</label><input type="number" id="d-jam" class="form-control" value="${d.jamMaksimum}"></div>
             </div>
             <div class="grid grid-2" style="gap:12px;">
-                <div class="form-group"><label class="form-label">Durasi (Menit)</label><input type="number" id="d-durasi" class="form-control" value="${d.durasiJam || 45}"></div>
-                <div class="form-group"><label class="form-label">Jam Istirahat (Pisah koma)</label><input type="text" id="d-istirahat" class="form-control" value="${d.jamIstirahat}" placeholder="Contoh: 4, 7"></div>
+                <div class="form-group"><label class="form-label">Durasi Mapel (Menit)</label><input type="number" id="d-durasi" class="form-control" value="${d.durasiJam || 45}"></div>
+                <div class="form-group"><label class="form-label">Durasi Istirahat (Menit)</label><input type="number" id="d-durasi-istirahat" class="form-control" value="${d.durasiIstirahat || 15}"></div>
             </div>
+            <div class="form-group"><label class="form-label">Jam Istirahat Ke- (Pisah koma)</label><input type="text" id="d-istirahat" class="form-control" value="${d.jamIstirahat}" placeholder="Contoh: 4, 7"></div>
+            
             <div style="background:#fffbeb; padding:12px; border-radius:var(--radius-sm); margin-top:8px; border:1px solid #fde68a;">
-                <p style="font-size:0.75rem; color:#b45309; margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> <b>Perhatian:</b> Ubah 'Total Jam' atau 'Jam Istirahat' <b>wajib</b> tekan Generate Ulang Waktu.</p>
+                <p style="font-size:0.75rem; color:#b45309; margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> <b>Perhatian:</b> Ubah parameter waktu <b>wajib</b> tekan Generate Ulang Waktu.</p>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="btn btn-primary" style="flex:1" onclick="saveDashboard(false)"><i class="fas fa-save"></i> Simpan</button>
+                    <button class="btn btn-primary" style="flex:1" onclick="saveDashboard(false)"><i class="fas fa-save"></i> Simpan Saja</button>
                     <button class="btn btn-warning" style="flex:1" onclick="saveDashboard(true)"><i class="fas fa-sync"></i> Generate Waktu</button>
                 </div>
             </div>
             <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-                <h4 style="margin-bottom: 6px; color:var(--dark); font-size:0.9rem;">Backup & Restore</h4>
+                <h4 style="margin-bottom: 6px; color:var(--dark); font-size:0.9rem;">Backup, Restore & Reset</h4>
                 <div style="display: flex; gap: 8px; flex-wrap:wrap;">
                     <button class="btn btn-info btn-sm" onclick="backupData()"><i class="fas fa-download"></i> Backup JSON</button>
                     <button class="btn btn-secondary btn-sm" onclick="triggerRestore()"><i class="fas fa-upload"></i> Restore JSON</button>
                     <input type="file" id="restore-file-input" accept=".json" style="display: none;" onchange="processRestore(event)">
+                    <button class="btn btn-danger btn-sm" onclick="hapusSemuaData()"><i class="fas fa-trash-alt"></i> Reset Aplikasi</button>
                 </div>
             </div>
           </div>
@@ -540,13 +546,13 @@
                 <tbody>${wList.map((item, index) => `
                     <tr><td style="font-weight:600; color:var(--text-muted);">Jam ${item.jamKe}</td>
                       <td>
-                        <select class="form-control w-tipe" data-idx="${index}" style="padding:4px; font-size:0.75rem;">
+                        <select class="form-control w-tipe" data-idx="${index}" style="padding:4px; font-size:0.75rem;" onchange="recalculateWaktu(${index})">
                             <option value="mapel" ${item.tipe==='mapel'?'selected':''}>Mata Pelajaran</option>
                             <option value="istirahat" ${item.tipe==='istirahat'?'selected':''}>ISTIRAHAT</option>
                         </select>
                       </td>
-                      <td><input type="text" class="time-input w-mulai" data-idx="${index}" value="${item.mulai}"></td>
-                      <td><input type="text" class="time-input w-selesai" data-idx="${index}" value="${item.selesai}"></td>
+                      <td><input type="text" class="time-input w-mulai" data-idx="${index}" value="${item.mulai}" onchange="recalculateWaktu(${index})"></td>
+                      <td><input type="text" class="time-input w-selesai" data-idx="${index}" value="${item.selesai}" disabled style="background:#e2e8f0;"></td>
                     </tr>`).join('')}
                 </tbody>
               </table>
@@ -560,26 +566,73 @@
       AppState.data.dashboard = {
         namaSekolah: document.getElementById('d-nama').value, tahunAkademik: document.getElementById('d-tahun').value,
         banyakHari: parseInt(document.getElementById('d-hari').value), jamMaksimum: parseInt(document.getElementById('d-jam').value),
-        durasiJam: parseInt(document.getElementById('d-durasi').value), jamIstirahat: document.getElementById('d-istirahat').value
+        durasiJam: parseInt(document.getElementById('d-durasi').value), 
+        durasiIstirahat: parseInt(document.getElementById('d-durasi-istirahat').value),
+        jamIstirahat: document.getElementById('d-istirahat').value
       };
       if (resetWaktu) {
-          if(!confirm("Awas! Ini akan menghapus semua penyesuaian waktu manual. Lanjutkan?")) return;
+          if(!confirm("Awas! Ini akan meregenerasi dan menghapus semua penyesuaian waktu manual. Lanjutkan?")) return;
           AppState.data.waktuDetail = generateDefaultWaktu(AppState.data.dashboard);
       }
       saveDB(AppState.data); showToast(resetWaktu ? 'Waktu Direset!' : 'Tersimpan!', 'success'); renderPengaturan(document.getElementById('main-content'));
+    }
+
+    // Auto-calculate cascade logic for time
+    window.recalculateWaktu = function(indexStr) {
+        let actHari = AppState.settingHari || 'Senin';
+        let wList = AppState.data.waktuDetail[actHari];
+        let index = parseInt(indexStr);
+        let d = AppState.data.dashboard;
+        let durasiMapel = d.durasiJam || 45;
+        let durasiIst = d.durasiIstirahat || 15;
+
+        // Sync inputs back to memory first
+        document.querySelectorAll('.w-mulai').forEach((input, i) => { wList[i].mulai = input.value; });
+        document.querySelectorAll('.w-tipe').forEach((input, i) => { wList[i].tipe = input.value; });
+
+        const addTime = (timeStr, mins) => {
+            let parts = timeStr.split('.');
+            let h = parseInt(parts[0]) || 0;
+            let m = parseInt(parts[1]) || 0;
+            let date = new Date(); date.setHours(h, m, 0); date.setMinutes(date.getMinutes() + mins);
+            return `${date.getHours().toString().padStart(2,'0')}.${date.getMinutes().toString().padStart(2,'0')}`;
+        };
+
+        for(let i = index; i < wList.length; i++) {
+            if(i > index) {
+                wList[i].mulai = wList[i-1].selesai; // cascade from previous finish time
+            }
+            let mins = wList[i].tipe === 'istirahat' ? durasiIst : durasiMapel;
+            wList[i].selesai = addTime(wList[i].mulai, mins);
+        }
+        
+        saveDB(AppState.data);
+        renderPengaturan(document.getElementById('main-content')); // refresh UI
     }
 
     function saveWaktu() {
       let actHari = AppState.settingHari || 'Senin';
       if(!AppState.data.waktuDetail[actHari]) return;
 
-      document.querySelectorAll('.w-mulai').forEach(input => { 
-          const idx = input.getAttribute('data-idx'); 
+      document.querySelectorAll('.w-mulai').forEach((input, idx) => { 
           AppState.data.waktuDetail[actHari][idx].mulai = input.value; 
           AppState.data.waktuDetail[actHari][idx].selesai = document.querySelectorAll('.w-selesai')[idx].value; 
           AppState.data.waktuDetail[actHari][idx].tipe = document.querySelectorAll('.w-tipe')[idx].value;
       });
       saveDB(AppState.data); showToast(`Waktu ${actHari} disimpan!`, 'success');
+    }
+
+    window.hapusSemuaData = function() {
+        if(confirm("PERINGATAN KERAS! Anda akan menghapus SEMUA data Jadwal, Kelas, Guru, dan Mata Pelajaran secara permanen. Lanjutkan?")) {
+            let konfirmasi = prompt("Ketik 'HAPUS' untuk mengonfirmasi tindakan ini:");
+            if (konfirmasi === 'HAPUS') {
+                localStorage.removeItem(DB_KEY);
+                showToast('Aplikasi berhasil di-reset.', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast('Tindakan reset dibatalkan.', 'info');
+            }
+        }
     }
 
     function setupModalFooter(hasSaveBtn, saveFunc) {
@@ -726,6 +779,13 @@
         body.innerHTML = `<div class="form-group"><label class="form-label">Kode</label><input type="text" id="f-kode" class="form-control" value="${d.kode||''}"></div><div class="form-group"><label class="form-label">Nama Kelas</label><input type="text" id="f-nama" class="form-control" value="${d.nama||''}"></div><div class="form-group"><label class="form-label">Tingkat</label><input type="number" id="f-tingkat" class="form-control" value="${d.tingkat||''}"></div>`;
       } else if(type === 'guru') {
         const hariArr = d.hariMengajar ? d.hariMengajar.split(',').map(x=>x.trim()) : ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'].slice(0, AppState.data.dashboard.banyakHari);
+        const jamMengajarArr = d.jamMengajar || Array.from({length: AppState.data.dashboard.jamMaksimum}, (_, i) => (i + 1).toString());
+        
+        let cbJamHtml = Array.from({length: AppState.data.dashboard.jamMaksimum}, (_, i) => {
+            let j = (i + 1).toString();
+            return `<label class="checkbox-item"><input type="checkbox" class="cb-jam-guru" value="${j}" ${jamMengajarArr.includes(j)?'checked':''}> <span>Jam ${j}</span></label>`;
+        }).join('');
+
         body.innerHTML = `
           <div class="grid grid-2" style="gap:12px;">
             <div class="form-group"><label class="form-label">Kode Guru</label><input type="text" id="f-kode-guru" class="form-control" value="${d.kode||''}"></div>
@@ -739,8 +799,12 @@
             <div id="penugasan-container" style="padding:4px; max-height:240px; overflow-y:auto; background:var(--bg-app); border-radius:var(--radius-sm);"></div>
           </div>
           <div class="form-group" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
-            <label class="form-label">Hari Mengajar</label>
+            <label class="form-label">Hari Bersedia Mengajar</label>
             <div class="checkbox-group">${['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'].slice(0, AppState.data.dashboard.banyakHari).map(h => `<label class="checkbox-item"><input type="checkbox" class="cb-hari" value="${h}" ${hariArr.includes(h)?'checked':''}> <span>${h}</span></label>`).join('')}</div>
+          </div>
+          <div class="form-group" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+            <label class="form-label">Jam Bersedia Mengajar (Pilih Jam)</label>
+            <div class="checkbox-group">${cbJamHtml}</div>
           </div>
         `;
         setTimeout(() => { if(d.penugasan && d.penugasan.length > 0) d.penugasan.forEach(p => tambahBarisPenugasan(p.mapel, p.kelas, p.jamAjar)); else tambahBarisPenugasan(); }, 50);
@@ -761,8 +825,13 @@
       } else if(type === 'guru') {
         newData.kode = document.getElementById('f-kode-guru').value || '-'; newData.nama = document.getElementById('f-nama').value;
         const hariDipilih = Array.from(document.querySelectorAll('.cb-hari:checked')).map(cb => cb.value);
-        if(hariDipilih.length === 0) return showToast('Pilih setidaknya 1 hari!', 'warning');
+        if(hariDipilih.length === 0) return showToast('Pilih setidaknya 1 hari bersedia mengajar!', 'warning');
         newData.hariMengajar = hariDipilih.join(', ');
+
+        const jamDipilih = Array.from(document.querySelectorAll('.cb-jam-guru:checked')).map(cb => cb.value);
+        if(jamDipilih.length === 0) return showToast('Pilih setidaknya 1 jam bersedia mengajar!', 'warning');
+        newData.jamMengajar = jamDipilih;
+
         let penugasan = []; let isValid = true; let pesanError = "";
         const rows = document.querySelectorAll('.penugasan-row');
         for (let i = 0; i < rows.length; i++) {
@@ -772,7 +841,8 @@
             if (mapelObj) {
               const invalidKelas = kelasArr.filter(namaKls => { const kelasObj = AppState.data.kelas.find(k => String(k.nama).trim().toLowerCase() === namaKls.toLowerCase()); return kelasObj && String(kelasObj.tingkat).trim() !== String(mapelObj.tingkat).trim(); });
               if (invalidKelas.length > 0) { isValid = false; pesanError = `Mapel ${mapelObj.nama} beda tingkat dengan Kelas ${invalidKelas.join(', ')}.`; break; }
-              if (jam > parseInt(mapelObj.jamPerMinggu)) { isValid = false; pesanError = `Jam per kelas (${jam}) melebihi batas Mapel ${mapelObj.nama} (${mapelObj.jamPerMinggu}).`; break; }
+              // Validasi agar jumlah jam per kelas pada penugasan ini tidak melebihi batas yang diset di mapel
+              if (jam > parseInt(mapelObj.jamPerMinggu)) { isValid = false; pesanError = `Jam per kelas (${jam}) melebihi batas maksimum Mapel ${mapelObj.nama} (${mapelObj.jamPerMinggu} Jam).`; break; }
             }
             penugasan.push({ mapel: mapelObj.nama, kelas: kelasArr, jamAjar: jam });
           }
@@ -821,7 +891,7 @@
                         if(kodeGuru) exist.kode = kodeGuru; exist.nama = namaGuru; if(row['Hari Mengajar']) exist.hariMengajar = String(row['Hari Mengajar']).trim();
                         if (mapel && kelasArr.length > 0) { let tugasExist = exist.penugasan.find(p => p.mapel === mapel); if (tugasExist) { tugasExist.kelas = [...new Set([...tugasExist.kelas, ...kelasArr])]; tugasExist.jamAjar = parseInt(row['Jam Per Kelas']) || tugasExist.jamAjar || 2; } else { exist.penugasan.push({ mapel: mapel, kelas: kelasArr, jamAjar: parseInt(row['Jam Per Kelas']) || 2 }); } }
                         countTimpa++;
-                    } else { AppState.data.guru.push({ id: Date.now() + Math.random().toString(36).substr(2), kode: kodeGuru || '-', nama: namaGuru, hariMengajar: row['Hari Mengajar'] ? String(row['Hari Mengajar']).trim() : 'Senin, Selasa, Rabu, Kamis, Jumat, Sabtu', penugasan: (mapel && kelasArr.length > 0) ? [{ mapel: mapel, kelas: kelasArr, jamAjar: parseInt(row['Jam Per Kelas']) || 2 }] : [] }); countBaru++; }
+                    } else { AppState.data.guru.push({ id: Date.now() + Math.random().toString(36).substr(2), kode: kodeGuru || '-', nama: namaGuru, hariMengajar: row['Hari Mengajar'] ? String(row['Hari Mengajar']).trim() : 'Senin, Selasa, Rabu, Kamis, Jumat, Sabtu', penugasan: (mapel && kelasArr.length > 0) ? [{ mapel: mapel, kelas: kelasArr, jamAjar: parseInt(row['Jam Per Kelas']) || 2 }] : [], jamMengajar: Array.from({length: AppState.data.dashboard.jamMaksimum}, (_, i) => (i + 1).toString()) }); countBaru++; }
                 }
             });
             saveDB(AppState.data); closeModal('modal-form'); showToast(`${countBaru} Ditambah, ${countTimpa} Diupdate`, 'success'); navigateTo(type);
@@ -839,7 +909,7 @@
             <i class="fas fa-magic" style="font-size: 2.5rem; color: white;"></i>
           </div>
           <h2 style="font-size: 1.5rem; font-weight:800; color:var(--dark); margin-bottom:8px;">Generate Otomatis</h2>
-          <p style="color: var(--text-muted); max-width:450px; margin: 0 auto 24px; font-size:0.85rem; line-height:1.5;">Algoritma pintar kami mendistribusikan guru ke dalam slot waktu tanpa bentrok.</p>
+          <p style="color: var(--text-muted); max-width:450px; margin: 0 auto 24px; font-size:0.85rem; line-height:1.5;">Algoritma pintar kami mendistribusikan guru ke dalam slot waktu tanpa bentrok dengan menyesuaikan hari & jam ketersediaan.</p>
           <button class="btn btn-primary" style="font-size:1rem; padding: 10px 24px; border-radius: 50px; box-shadow: 0 8px 12px -3px rgba(16, 185, 129, 0.3);" onclick="generateJadwalOffline()"><i class="fas fa-play"></i> Mulai Generate</button>
         </div>`;
     }
@@ -856,6 +926,8 @@
         guruList.forEach(g => {
             if(!g.penugasan || g.penugasan.length === 0) return;
             const hariAjarGuru = g.hariMengajar ? g.hariMengajar.split(',').map(x=>x.trim()) : hariList;
+            const jamAjarGuru = g.jamMengajar || Array.from({length: d.dashboard.jamMaksimum}, (_, i) => (i + 1).toString());
+
             g.penugasan.forEach(tugas => {
                 tugas.kelas.forEach(kelas => {
                     const kObj = d.kelas.find(k => String(k.nama).trim() === String(kelas).trim()); if(!kObj) return; 
@@ -871,6 +943,8 @@
                         for(let w of wHari) {
                             if(sisaJam <= 0) break;
                             if(w.tipe === 'istirahat') continue;
+                            if(!jamAjarGuru.includes(w.jamKe.toString())) continue; // Cek Limit Jam Tersedia Guru
+
                             if (d.jadwal.filter(j => j.kelas === kelas && j.mapel === tugas.mapel).length >= batasMingguan) { sisaJam = 0; break; }
                             const bentrokGuru = d.jadwal.find(jd => jd.hari === h && jd.jam === w.jamKe && jd.guru === g.nama);
                             const bentrokKelas = d.jadwal.find(jd => jd.hari === h && jd.jam === w.jamKe && jd.kelas === kelas);
@@ -897,7 +971,7 @@
         <div class="header">
           <h2><button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button> <i class="fas fa-edit"></i> Edit Jadwal</h2>
           <div class="header-actions">
-            <button class="btn btn-danger btn-sm" onclick="bukaHapusMassal()"><i class="fas fa-trash-alt"></i> Reset</button>
+            <button class="btn btn-danger btn-sm" onclick="bukaHapusMassal()"><i class="fas fa-trash-alt"></i> Bersihkan Jadwal</button>
             <select class="form-control" style="width: 180px; font-weight:600;" onchange="AppState.filterKelas=this.value; navigateTo('jadwal-edit')">
               ${d.kelas.map(k => `<option value="${k.nama}" ${k.nama===kelasPilih?'selected':''}>Kelas ${k.nama}</option>`).join('')}
             </select>
@@ -994,7 +1068,6 @@
                       } else if (AppState.lihatMode === 'mapel') {
                           return `<div class="mapel-name">${item.guru}</div><div class="guru-name">Kls ${item.kelas}</div>`; 
                       } else {
-                          // TAMPILAN PER KELAS: Kembali bersih tanpa embel-embel tingkat
                           return `<div class="mapel-name">${item.mapel}</div><div class="guru-name">${item.guru}</div>`;
                       }
                   }).join('<hr style="margin:4px 0; border-top:1px solid #cbd5e1;">');
@@ -1034,6 +1107,19 @@
       if(!comboVal) return kosongkanCell();
       let [guruBaru, mapelBaru] = comboVal.split('|'); if(guruBaru === 'Lainnya') { guruBaru = '-'; mapelBaru = document.getElementById('input-kegiatan-manual').value || 'Kegiatan'; }
       
+      // VALIDASI GURU: Hari & Jam Kesediaan
+      if(guruBaru !== '-') {
+          const guruObj = AppState.data.guru.find(g => g.nama === guruBaru);
+          if (guruObj) {
+              if (guruObj.hariMengajar && !guruObj.hariMengajar.includes(hari)) return showToast(`Ditolak! ${guruBaru} tidak tersedia di hari ${hari}.`, 'error');
+              
+              for(let i=0; i < durasi; i++) {
+                  let jamCek = jamMulai + i;
+                  if (guruObj.jamMengajar && !guruObj.jamMengajar.includes(jamCek.toString())) return showToast(`Ditolak! ${guruBaru} tidak bersedia mengajar di jam ke-${jamCek}.`, 'error');
+              }
+          }
+      }
+
       for(let i=0; i < durasi; i++) {
         let jamCek = jamMulai + i; let wDetail = (AppState.data.waktuDetail[hari] || []).find(w => w.jamKe === jamCek);
         if(!wDetail || wDetail.tipe === 'istirahat') return showToast(`Jam ${jamCek} adalah istirahat.`, 'error');
@@ -1081,8 +1167,23 @@
       const idx1 = AppState.data.jadwal.findIndex(j => j.hari === h1 && j.jam === j1 && j.kelas === k); const idx2 = AppState.data.jadwal.findIndex(j => j.hari === h2 && j.jam === j2 && j.kelas === k);
       let temp1 = idx1 >= 0 ? {...AppState.data.jadwal[idx1]} : null; let temp2 = idx2 >= 0 ? {...AppState.data.jadwal[idx2]} : null;
 
-      if(temp1 && temp1.guru !== '-') { const bentrokSlot2 = AppState.data.jadwal.find(j => j.hari === h2 && j.jam === j2 && j.guru === temp1.guru && j.kelas !== k); if(bentrokSlot2) return showToast(`Gagal! ${temp1.guru} bentrok di Kls ${bentrokSlot2.kelas}.`, 'error'); }
-      if(temp2 && temp2.guru !== '-') { const bentrokSlot1 = AppState.data.jadwal.find(j => j.hari === h1 && j.jam === j1 && j.guru === temp2.guru && j.kelas !== k); if(bentrokSlot1) return showToast(`Gagal! ${temp2.guru} bentrok di Kls ${bentrokSlot1.kelas}.`, 'error'); }
+      // VALIDASI TUKAR GURU: Ketersediaan Hari & Jam
+      if (temp1 && temp1.guru !== '-') {
+          const guru1 = AppState.data.guru.find(g => g.nama === temp1.guru);
+          if (guru1) {
+              if (guru1.hariMengajar && !guru1.hariMengajar.includes(h2)) return showToast(`Gagal! ${temp1.guru} tidak bisa mengajar hari ${h2}.`, 'error');
+              if (guru1.jamMengajar && !guru1.jamMengajar.includes(j2.toString())) return showToast(`Gagal! ${temp1.guru} tidak bisa mengajar jam ${j2}.`, 'error');
+          }
+          const bentrokSlot2 = AppState.data.jadwal.find(j => j.hari === h2 && j.jam === j2 && j.guru === temp1.guru && j.kelas !== k); if(bentrokSlot2) return showToast(`Gagal! ${temp1.guru} bentrok di Kls ${bentrokSlot2.kelas}.`, 'error');
+      }
+      if (temp2 && temp2.guru !== '-') {
+          const guru2 = AppState.data.guru.find(g => g.nama === temp2.guru);
+          if (guru2) {
+              if (guru2.hariMengajar && !guru2.hariMengajar.includes(h1)) return showToast(`Gagal! ${temp2.guru} tidak bisa mengajar hari ${h1}.`, 'error');
+              if (guru2.jamMengajar && !guru2.jamMengajar.includes(j1.toString())) return showToast(`Gagal! ${temp2.guru} tidak bisa mengajar jam ${j1}.`, 'error');
+          }
+          const bentrokSlot1 = AppState.data.jadwal.find(j => j.hari === h1 && j.jam === j1 && j.guru === temp2.guru && j.kelas !== k); if(bentrokSlot1) return showToast(`Gagal! ${temp2.guru} bentrok di Kls ${bentrokSlot1.kelas}.`, 'error');
+      }
 
       if (idx1 >= 0) { if (temp2) { AppState.data.jadwal[idx1].mapel = temp2.mapel; AppState.data.jadwal[idx1].guru = temp2.guru; } else { AppState.data.jadwal.splice(idx1, 1); } } else if (temp2) { AppState.data.jadwal.push({ hari: h1, jam: j1, kelas: k, mapel: temp2.mapel, guru: temp2.guru }); }
       const newIdx2 = AppState.data.jadwal.findIndex(j => j.hari === h2 && j.jam === j2 && j.kelas === k);
@@ -1122,13 +1223,21 @@
     // ==========================================
     window.refreshManualJam = function() {
         const k = document.getElementById('man-kelas').value; const h = document.getElementById('man-hari').value; const container = document.getElementById('man-jam-container'); if(!k || !h || !container) return;
+        
+        const gCombo = document.getElementById('man-guru').value; let gNama = gCombo ? gCombo.split('|')[0] : '';
+        const guruObj = AppState.data.guru.find(g => g.nama === gNama);
+
         let html = '';
         if(AppState.data.waktuDetail[h]){
             AppState.data.waktuDetail[h].filter(w=>w.tipe==='mapel').forEach(w => {
+                // Filter Tampilan Jam Sesuai Ketersediaan Guru
+                if(guruObj && guruObj.jamMengajar && !guruObj.jamMengajar.includes(w.jamKe.toString())) return;
+
                 const isi = AppState.data.jadwal.find(x => x.hari===h && x.jam===w.jamKe && x.kelas===k); let status = isi ? `<span class="badge badge-warning" style="margin-left:auto;">Terisi: ${isi.mapel}</span>` : `<span class="badge badge-success" style="margin-left:auto;">Kosong</span>`;
                 html += `<label class="checkbox-item" style="width:100%; display:flex; align-items:center; padding:8px 12px; margin-bottom:4px; justify-content:flex-start;"><input type="checkbox" class="cb-man-jam" value="${w.jamKe}"> <span style="margin-left:8px;">Jam ${w.jamKe} (${w.mulai})</span> ${status}</label>`;
             });
         }
+        if(!html) html = '<div style="color:var(--text-muted); font-size:0.8rem; padding:8px;">Tidak ada jam bersedia dari guru di hari ini.</div>';
         container.innerHTML = html;
     }
 
@@ -1155,14 +1264,23 @@
     }
 
     window.refreshManualKelas = function() {
-      const comboVal = document.getElementById('man-guru').value; const kelasSelect = document.getElementById('man-kelas');
+      const comboVal = document.getElementById('man-guru').value; const kelasSelect = document.getElementById('man-kelas'); const hariSelect = document.getElementById('man-hari');
       if(!comboVal) { kelasSelect.innerHTML = '<option value="">-- Pilih Penugasan Dulu --</option>'; refreshManualJam(); return; }
+      
       const [gNama, mapel] = comboVal.split('|'); const guruObj = AppState.data.guru.find(g => g.nama === gNama); let optKelas = '';
-      if(guruObj) { const tugas = (guruObj.penugasan || []).find(p => p.mapel === mapel); if(tugas && tugas.kelas) { tugas.kelas.forEach(k => { optKelas += `<option value="${k}">Kelas ${k}</option>`; }); } }
+      if(guruObj) { 
+          const tugas = (guruObj.penugasan || []).find(p => p.mapel === mapel); if(tugas && tugas.kelas) { tugas.kelas.forEach(k => { optKelas += `<option value="${k}">Kelas ${k}</option>`; }); } 
+          
+          // Filter Dropdown Hari Sesuai Guru
+          if(guruObj.hariMengajar) {
+              const hArr = guruObj.hariMengajar.split(',').map(x=>x.trim());
+              hariSelect.innerHTML = hArr.map(h => `<option value="${h}">${h}</option>`).join('');
+          }
+      }
       kelasSelect.innerHTML = optKelas || '<option value="">Tidak ada kelas</option>'; refreshManualJam();
     }
 
-function simpanManualLanjut() {
+    function simpanManualLanjut() {
       const comboVal = document.getElementById('man-guru').value; if(!comboVal) return showToast('Pilih Penugasan!', 'warning');
       const [g, mapel] = comboVal.split('|'); const k = document.getElementById('man-kelas').value; const h = document.getElementById('man-hari').value;
       if(!k) return showToast('Pilih Kelas Target!', 'warning');
@@ -1331,7 +1449,6 @@ function simpanManualLanjut() {
                       if (AppState.lihatMode === 'guru') return `${item.mapel} (Kls ${item.kelas})`;
                       else if (AppState.lihatMode === 'mapel') return `${item.guru} (Kls ${item.kelas})`;
                       else {
-                          // FORMAT EXCEL PER KELAS: Kembali normal tanpa tingkat
                           return `${item.mapel} - ${item.guru}`;
                       }
                   }).join(' | ')); 
